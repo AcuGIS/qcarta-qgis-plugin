@@ -1,7 +1,7 @@
-SFTP QGIS Plugin
+QCarta QGIS Plugin
 ==================================================
 
-.. image:: UploadQGISProject.png
+.. image:: qcarta6.png
 
 
 .. include:: ../README.rst
