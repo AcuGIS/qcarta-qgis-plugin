@@ -1,0 +1,14 @@
+[general]
+name=QCarta Plugin
+about=QGIS plugin for publishing to QCarta.
+category=Web
+tags=project, qgis-web-client
+main=qcarta_main.py
+description=Upload QGIS projects and data to stores in QCarta.
+version=0.1
+qgisMinimumVersion=3.0
+icon=icon.png
+author=AcuGIS
+email=hello@acugis.com
+homepage=https://www.acugis.com/qcarta-qgis-plugin
+repository=https://github.com/AcuGIS/qcarta_qgis_plugin
