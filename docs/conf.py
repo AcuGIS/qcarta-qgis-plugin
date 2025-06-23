@@ -2,7 +2,7 @@
 
 # -- Project information
 
-project = 'AcuGIS SFTP QGIS Plugin'
+project = 'QCarta QGIS Plugin'
 copyright = '2025, Cited, Inc.'
 author = 'Cited Inc'
 
