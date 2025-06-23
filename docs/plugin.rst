@@ -1,12 +1,19 @@
 **********************
-SFTP Plugin
+QCarta QGIS Plugin
 **********************
 
 .. contents:: Table of Contents
 Installation
 ==================
 
-Download acugis_sftp_tool.zip to your desktop
+The plugin is available via the QGIS Plugin Repository
+
+This is the recommended way to install it.
+
+Manual Installation
+==================
+
+Download qcarta_qgis_plugin.zip to your desktop
 
 In QGIS, go to Plugins > Manage and Install Plugins and click on "Install from Zip" in left menu.
 
@@ -21,47 +28,44 @@ Usage
   
 Begin by selecting Configure SFTP servers:  
 
-.. image:: plugin-1.png
+.. image:: qcarta01.png
 
 Click Add to add server(s).
 
-.. image:: ConfigureSFTPServers.png   
+.. image:: qcarta3.png
 
 Click Save.
 
-Go to Upload Project Directory via SFTP
+Go to Create Store
 
-.. image:: sftp.png
+.. image:: qcarta02.png
 
 Select the Server you wish to upload to.  
-
-Use the "Browse Remote Path" button to browse the remote directories, or simply enter the remote location (file path) to upload to (e.g. /var/www/html)
-
-If your owner is a user:group other than wwww-data, change it in the Ownership field.
 
 .. warning::
     The entire QGIS Project directory will be uploaded.
 
 Click Upload
 
-.. image:: UploadQGISProject.png  
+A success message will be displayed up completion.
+
+.. image:: qcarta6.png
 
 .. note::
     If files exist, you will prompted if you wish to overwrite files.
     
-A success message will be displayed up completion.
 
-Use Cases
+
+Update Store
 ==================
 
-The plugin is generic and can be used for SFTP'ing a QGIS Project directory to any remote location via SFTP.
+You can update an existing Store using the Update Store function
 
-Some specific use cases are:
+.. image:: qcarta03.png
 
-- Lizmap: While it is still neccessary to create a Repository on disk and register it via Lizmap admin, once you have done so the plugin can transfer the project as well as update files as needed.
+Select the Server and Store:
 
-- QWC2: Can be used to upload to /scan directory.  Once uploaded, Configuration Utility must still be run for the project.
-
+.. image:: qcarta7.png
 
 
 
