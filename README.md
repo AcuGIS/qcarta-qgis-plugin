@@ -1,4 +1,4 @@
-# QGIS QCarta Plugin
+# QCarta QGIS Plugin
 
 
 ![QCarta Upload QGIS](docs/qcarta6.png)
