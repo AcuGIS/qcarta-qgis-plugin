@@ -29,19 +29,17 @@ Plugin location /home/USERANME/.local/share/QGIS/QGIS3/profiles/default/python/p
 
 ## Configure Servers:
 
+Go to:
+
+![QCarta Upload QGIS](docs/qcarta01.png)
+
+Enter the information
+
 ![QCarta Upload QGIS](docs/qcarta3.png)
 
 
-![QCarta Upload QGIS](docs/qcarta01.png)
-![QCarta Upload QGIS](docs/qcarta1.png)
-![QCarta Upload QGIS](docs/qcarta02.png)
-![QCarta Upload QGIS](docs/qcarta2.png)
-![QCarta Upload QGIS](docs/qcarta03.png)
 
-![QCarta Upload QGIS](docs/qcarta4.png)
-![QCarta Upload QGIS](docs/qcarta5.png)
-![QCarta Upload QGIS](docs/qcarta6.png)
-![QCarta Upload QGIS](docs/qcarta7.png)
+
 
 - Begin by selecting 'Configure Access':
 
@@ -53,7 +51,10 @@ Plugin location /home/USERANME/.local/share/QGIS/QGIS3/profiles/default/python/p
 
 ## Upload to QCarta
 
-Go to 'Upload Project Directory to Store'
+Go to 'Create Store'
+
+![QCarta Upload QGIS](docs/qcarta02.png)
+
 
 Select the Server you wish to upload to.
 Select the Store you wish to upload to.
@@ -62,19 +63,35 @@ Click Upload
 .. note::
     Plugin uses file modification time to decide, if a file has to be uploaded.
     
+
+![QCarta Upload QGIS](docs/qcarta4.png)
+
 A success message will be displayed up completion.
+
+
+![QCarta Upload QGIS](docs/qcarta6.png)
+
 
 
 ## Toolbar Icons:
 
-![QCarta Plugin for QGIS](docs/PluginToolbar.fw.png)
+Confifure Access:
+
+![QCarta Upload QGIS](docs/qcarta01.png)
 
 
-## Plugin Menu:
+Create Store:
 
-![QCarta Plugin for QGIS](docs/Menu.png)
-
-## Use Cases
+![QCarta Upload QGIS](docs/qcarta02.png)
 
 
-The plugin is generic and can be used for publishing a QGIS Project directory to remote QCarta servers.
+Update Store:
+
+![QCarta Upload QGIS](docs/qcarta03.png)
+
+
+
+## Issues
+
+
+Report all issues here
