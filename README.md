@@ -1,6 +1,7 @@
 # QGIS QCarta Plugin
 
-![QCarta Upload QGIS](docs/AcuGISSFTPPlugin.png)
+
+![QCarta Upload QGIS](docs/qcarta6.png)
 
 AcuGIS QCarta Plugin for QGIS is a plugin for tranfering contents of a QGIS Project to a QCarta store.
 
@@ -28,7 +29,19 @@ Plugin location /home/USERANME/.local/share/QGIS/QGIS3/profiles/default/python/p
 
 ## Configure Servers:
 
-![QCarta Plugin](docs/ConfigureSFTPServers.png) 
+![QCarta Upload QGIS](docs/qcarta3.png)
+
+
+![QCarta Upload QGIS](docs/qcarta01.png)
+![QCarta Upload QGIS](docs/qcarta1.png)
+![QCarta Upload QGIS](docs/qcarta02.png)
+![QCarta Upload QGIS](docs/qcarta2.png)
+![QCarta Upload QGIS](docs/qcarta03.png)
+
+![QCarta Upload QGIS](docs/qcarta4.png)
+![QCarta Upload QGIS](docs/qcarta5.png)
+![QCarta Upload QGIS](docs/qcarta6.png)
+![QCarta Upload QGIS](docs/qcarta7.png)
 
 - Begin by selecting 'Configure Access':
 
