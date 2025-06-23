@@ -24,7 +24,7 @@ Browse to location where you saved qcarta_qgis_plugin.zip and then click "Instal
 
 Once installed, you should see the Plugins menu.
 
-Plugin location /home/kaloyan/.local/share/QGIS/QGIS3/profiles/default/python/plugins/qcarta_qgis_plugin
+Plugin location /home/USERANME/.local/share/QGIS/QGIS3/profiles/default/python/plugins/qcarta_qgis_plugin
 
 ## Configure Servers:
 
