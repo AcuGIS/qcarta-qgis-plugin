@@ -4,34 +4,53 @@ from qgis.PyQt.QtWidgets import QVBoxLayout, QMessageBox, QLineEdit, QDialog, QV
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtCore import Qt
 from qgis.core import QgsProject
+from .util import app_http_login
 
 class CreateDialog(QDialog):
-    def __init__(self, config):
+    def __init__(self, config, selected_server=None, parent_console=None):
         super().__init__()
     
         self.config = config
+        self.selected_server = selected_server
+        self.parent_console = parent_console
         self.setWindowTitle("Create QCarta store from Project Directory")
         self.layout = QVBoxLayout()
+        self.layout.setContentsMargins(3, 3, 4, 4)
+        self.layout.setSpacing(4)
     
-        logo_label = QLabel()
         logo_path = os.path.join(os.path.dirname(__file__), 'logo.png')
         if os.path.exists(logo_path):
+            logo_label = QLabel()
             logo_label.setPixmap(QIcon(logo_path).pixmap(120, 40))
-        branding_label = QLabel("<b style='font-size:14pt;'>QCarta Plugin</b><br><span style='font-size:10pt;'>Secure QCarta Deployment Tool</span>")
+            logo_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+            logo_label.setContentsMargins(6, 6, 0, 0)
+            self.layout.addWidget(logo_label)
+
+        branding_label = QLabel(
+            "<b style='font-size:14pt;'>Create Store</b><br>"
+            "<span style='font-size:10pt;'>Create a QGIS Store</span>"
+        )
         branding_label.setAlignment(Qt.AlignCenter)
-    
-        self.layout.addWidget(logo_label)
-        self.layout.addWidget(branding_label)
+        branding_label.setContentsMargins(0, -10, 0, 0)
+        self.layout.addWidget(branding_label)   
+       
     
         form_layout = QFormLayout()
+        form_layout.setContentsMargins(0, 0, 0, 0)
+        form_layout.setVerticalSpacing(6)
+        form_layout.setHorizontalSpacing(8)
 
-        self.server_dropdown = QComboBox()
-        server_names = list(config.keys())
-        self.server_dropdown.addItems(server_names)
+        # Show selected server as label instead of dropdown
+        if selected_server and selected_server in config:
+            self.server_label = QLabel(f"Server: {selected_server}")
+            self.server_label.setStyleSheet("font-weight: bold; color: #2E8B57;")
+        else:
+            self.server_label = QLabel("Server: No server selected")
+            self.server_label.setStyleSheet("font-weight: bold; color: #DC143C;")
 
         self.store_name = QLineEdit()
         
-        form_layout.addRow("Server:", self.server_dropdown)
+        form_layout.addRow(self.server_label)
         form_layout.addRow("Store:", self.store_name)
     
         self.layout.addLayout(form_layout)
@@ -68,11 +87,15 @@ class CreateDialog(QDialog):
             yield data
 
     def create_store(self):
-        server_name = self.server_dropdown.currentText()
+        server_name = self.selected_server
         store_name = self.store_name.text()
 
         if not server_name or not store_name:
-            QMessageBox.warning(self, "Missing Info", "Please select a server and remote path.")
+            QMessageBox.warning(self, "Missing Info", "Please select a server in the Configure tab and enter a store name.")
+            return
+
+        if server_name not in self.config:
+            QMessageBox.warning(self, "Invalid Server", "Selected server is not configured.")
             return
 
         server_info = self.config[server_name]
@@ -86,14 +109,8 @@ class CreateDialog(QDialog):
 
         s = requests.Session()
         
-        try:
-            response = s.post(proto + '://' + server_info['host'] + '/admin/action/login.php', data={'submit':1, 'email': server_info['username'], 'pwd': server_info['password']}, timeout=(10, 30))
-            if response.status_code != 200:
-                response = response.json();
-                QMessageBox.warning(None, "Login error", "Failed to login: " + response['message'])
-                return
-        except Exception as e:
-            QMessageBox.critical(None, "HTTP error", "Failed to create store: " + str(e))
+        if not app_http_login(s, proto, server_info['host'], server_info['username'], server_info['password']):
+            QMessageBox.warning(None, "Login error", "Failed to login to with " + server_info['username'] + ' to ' + server_info['host'])
             return
         
         project_dir = os.path.dirname(project_path)
@@ -185,6 +202,9 @@ class CreateDialog(QDialog):
                     self.log_output.append(f"✖ Failed to upload {relative_path}: {e}")
             if store_created:
                 QMessageBox.information(self, "Create Complete", "Store created successfully.")
+                # Refresh store lists in other tabs
+                if self.parent_console:
+                    self.parent_console.refresh_store_lists()
             else:
                 QMessageBox.critical(self, "Create Incomplete", "Store created failed.")
 

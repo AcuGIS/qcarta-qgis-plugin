@@ -4,37 +4,53 @@ from qgis.PyQt.QtWidgets import QVBoxLayout, QMessageBox, QDialog, QVBoxLayout, 
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtCore import Qt
 from qgis.core import QgsProject
+from .util import app_http_login
 
 class UploadDialog(QDialog):
-    def __init__(self, config):
+    def __init__(self, config, selected_server=None):
         super().__init__()
     
         self.config = config
+        self.selected_server = selected_server
         self.setWindowTitle("Update QCarta store from Project Directory")
         self.layout = QVBoxLayout()
+        self.layout.setContentsMargins(3, 3, 4, 4)
+        self.layout.setSpacing(4)
     
-        logo_label = QLabel()
         logo_path = os.path.join(os.path.dirname(__file__), 'logo.png')
         if os.path.exists(logo_path):
+            logo_label = QLabel()
             logo_label.setPixmap(QIcon(logo_path).pixmap(120, 40))
-        branding_label = QLabel("<b style='font-size:14pt;'>QCarta Plugin</b><br><span style='font-size:10pt;'>Secure QCarta Deployment Tool</span>")
+            logo_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+            logo_label.setContentsMargins(6, 6, 0, 0)
+            self.layout.addWidget(logo_label)
+
+        branding_label = QLabel(
+            "<b style='font-size:14pt;'>Update Store</b><br>"
+            "<span style='font-size:10pt;'>Update QGIS Project Store</span>"
+        )
         branding_label.setAlignment(Qt.AlignCenter)
-    
-        self.layout.addWidget(logo_label)
+        branding_label.setContentsMargins(0, -10, 0, 0)
         self.layout.addWidget(branding_label)
     
         form_layout = QFormLayout()
+        form_layout.setContentsMargins(0, 0, 0, 0)
+        form_layout.setVerticalSpacing(6)
+        form_layout.setHorizontalSpacing(8)
         
-        self.server_dropdown = QComboBox()
+        # Show selected server as label instead of dropdown
+        if selected_server and selected_server in config:
+            self.server_label = QLabel(f"Server: {selected_server}")
+            self.server_label.setStyleSheet("font-weight: bold; color: #2E8B57;")
+        else:
+            self.server_label = QLabel("Server: No server selected")
+            self.server_label.setStyleSheet("font-weight: bold; color: #DC143C;")
+            
         self.store_dropdown = QComboBox()
-
-        server_names = list(config.keys())
-        self.server_dropdown.addItems(server_names)
-        self.server_dropdown.currentIndexChanged.connect(self.updateStores)
         
         self.updateStores()
     
-        form_layout.addRow("Server:", self.server_dropdown)
+        form_layout.addRow(self.server_label)
         form_layout.addRow("Store:", self.store_dropdown)
     
         self.layout.addLayout(form_layout)
@@ -64,10 +80,21 @@ class UploadDialog(QDialog):
         cancel_btn.clicked.connect(self.reject)
     
     def updateStores(self):
-        server_info = self.config.get(self.server_dropdown.currentText(), {})
+        if not self.selected_server or self.selected_server not in self.config:
+            return
+            
+        server_info = self.config.get(self.selected_server, {})
+        if not server_info or not isinstance(server_info, dict):
+            return
+            
         stores = self.get_stores(server_info)
+        stores = list(stores.keys())
+        stores.sort()
+        
+        self.store_dropdown.blockSignals(True)
         self.store_dropdown.clear()
-        self.store_dropdown.addItems(list(stores.keys()))
+        self.store_dropdown.addItems(stores)
+        self.store_dropdown.blockSignals(False)
 
     def read_in_chunks(self, file_object, chunk_size=65536):
         while True:
@@ -77,11 +104,15 @@ class UploadDialog(QDialog):
             yield data
 
     def start_upload(self):
-        server_name = self.server_dropdown.currentText()
+        server_name = self.selected_server
         store_name = self.store_dropdown.currentText()
 
         if not server_name or not store_name:
-            QMessageBox.warning(self, "Missing Info", "Please select a server and remote path.")
+            QMessageBox.warning(self, "Missing Info", "Please select a server in the Configure tab and select a store.")
+            return
+
+        if server_name not in self.config:
+            QMessageBox.warning(self, "Invalid Server", "Selected server is not configured.")
             return
 
         server_info = self.config[server_name]
@@ -95,11 +126,8 @@ class UploadDialog(QDialog):
 
         s = requests.Session()
         try:
-            response = s.post(proto + '://' + server_info['host'] + '/admin/action/login.php', data={'submit':1, 'email': server_info['username'], 'pwd': server_info['password']}, timeout=(10, 30))
-        
-            if response.status_code != 200:
-                response = response.json();
-                QMessageBox.warning(None, "Login error", "Failed to login: " + response['message'])
+            if not app_http_login(s, proto, server_info['host'], server_info['username'], server_info['password']):
+                QMessageBox.warning(None, "Login error", "Failed to login to with " + server_info['username'] + ' to ' + server_info['host'])
                 return
             
             response = s.get(proto + '://' + server_info['host'] + '/rest/store/' + store_name, timeout=(10, 30))
@@ -153,7 +181,7 @@ class UploadDialog(QDialog):
                         for chunk in self.read_in_chunks(f):                                
                             post_values['start'] = offset
                             post_values['bytes'] = chunk
-                            response = s.post(proto + '://' + server_info['host'] + '/admin/action/upload.php', data=post_values, timeout=(10, 30));
+                            response = s.post(proto + '://' + server_info['host'] + '/admin/action/upload.php', data=post_values);
                             if response.status_code != 200:
                                 raise Exception("Chunk upload failed")
                             offset = offset + len(chunk)
@@ -181,7 +209,10 @@ class UploadDialog(QDialog):
     def get_stores(self, server_info):
         rv = {}
         
-        proto = 'https' if server_info['port'] == 443 else 'http'
+        if not server_info or not isinstance(server_info, dict):
+            return rv
+            
+        proto = 'https' if server_info.get('port', 443) == 443 else 'http'
         try:
             response = requests.get(proto + '://' + server_info['host'] + '/rest/stores', auth=(server_info['username'], server_info['password']), timeout=(10, 30))
             if response.status_code == 200:

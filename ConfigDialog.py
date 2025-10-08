@@ -1,148 +1,164 @@
 import os
 import requests
-from qgis.PyQt.QtWidgets import QDialog, QMessageBox, QPushButton, QVBoxLayout, QLabel, QListWidget, QFormLayout, QLineEdit, QLineEdit, QLineEdit, QLineEdit, QLineEdit, QLabel, QHBoxLayout
+from qgis.PyQt.QtWidgets import QDialog, QMessageBox, QPushButton, QVBoxLayout, QLabel, QHBoxLayout, QComboBox
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtCore import Qt, QTimer
+from .util import app_http_login
+from .ServerConfigModal import ServerConfigModal
 
 class ConfigDialog(QDialog):
-    def __init__(self, config):
+    def __init__(self, config, save_callback=None):
         super().__init__()
         self.setWindowTitle("Configure QCarta Access")
         self.config = config
+        self.save_callback = save_callback
         self.layout = QVBoxLayout()
 
         logo_label = QLabel()
         logo_path = os.path.join(os.path.dirname(__file__), 'logo.png')
         if os.path.exists(logo_path):
             logo_label.setPixmap(QIcon(logo_path).pixmap(120, 40))
-        branding_label = QLabel("<b style='font-size:14pt;'>QCarta Servers</b><br><span style='font-size:10pt;'>Secure QCarta Deployment Tool</span>")
+        branding_label = QLabel("<b style='font-size:14pt;'>QCarta Servers</b><br><span style='font-size:10pt;'>Add and Configure QCarta Servers</span>")
         branding_label.setAlignment(Qt.AlignCenter)
 
         self.layout.addWidget(logo_label)
         self.layout.addWidget(branding_label)
 
-        self.list_widget = QListWidget()
-        self.list_widget.addItems(sorted(config.keys()))
-        self.layout.addWidget(self.list_widget)
-
-        self.form_layout = QFormLayout()
-        self.server_name = QLineEdit()
-        self.host = QLineEdit()
-        self.username = QLineEdit()
-        self.password = QLineEdit()
-        self.password.setEchoMode(QLineEdit.Password)
-        self.port = QLineEdit()
-
-        self.form_layout.addRow("Server Name:", self.server_name)
-        self.form_layout.addRow("Host:", self.host)
-        self.form_layout.addRow("Username:", self.username)
-        self.form_layout.addRow("Password:", self.password)
-        self.form_layout.addRow("Port (default 443):", self.port)
-        self.layout.addLayout(self.form_layout)
+        # Server selection section
+        server_section_layout = QVBoxLayout()
+        
+        # Selected server dropdown
+        self.selected_server_dropdown = QComboBox()
+        # Filter out metadata keys like '_selected_server'
+        server_names = [key for key in config.keys() if not key.startswith('_')]
+        self.selected_server_dropdown.addItems(sorted(server_names))
+        
+        server_section_layout.addWidget(QLabel("Selected Server:"))
+        server_section_layout.addWidget(self.selected_server_dropdown)
+        
+        # Add/Edit button
+        self.add_edit_button = QPushButton("Edit Server")
+        self.add_edit_button.clicked.connect(self.open_server_modal)
+        server_section_layout.addWidget(self.add_edit_button)
+        
+        # Add New button (always visible)
+        self.add_new_button = QPushButton("Add New Server")
+        self.add_new_button.clicked.connect(self.add_new_server)
+        server_section_layout.addWidget(self.add_new_button)
+        
+        self.layout.addLayout(server_section_layout)
 
         self.status_label = QLabel()
         self.status_label.setStyleSheet("color: green;")
         self.layout.addWidget(self.status_label)
 
+        # Button layout
         self.button_layout = QHBoxLayout()
-        self.save_button = QPushButton("Save")
-        self.delete_button = QPushButton("Delete")
-        self.add_button = QPushButton("Add New")
-        self.test_button = QPushButton("Test Connection")
-        self.button_layout.addWidget(self.add_button)
-        self.button_layout.addWidget(self.save_button)
+        self.delete_button = QPushButton("Delete Server")
+        self.delete_button.clicked.connect(self.delete_server)
         self.button_layout.addWidget(self.delete_button)
-        self.button_layout.addWidget(self.test_button)
 
         self.layout.addLayout(self.button_layout)
         self.setLayout(self.layout)
 
-        self.list_widget.currentItemChanged.connect(self.load_selected)
-        self.save_button.clicked.connect(self.save_entry)
-        self.delete_button.clicked.connect(self.delete_entry)
-        self.add_button.clicked.connect(self.clear_form)
-        self.test_button.clicked.connect(self.test_connection)
-
-    def load_selected(self):
-        if self.list_widget.count() == 0:
-            return
-        name = self.list_widget.currentItem().text()
-        entry = self.config.get(name, {})
-        self.server_name.setText(name)
-        self.host.setText(entry.get('host', ''))
-        self.username.setText(entry.get('username', ''))
-        self.password.setText(entry.get('password', ''))
-        self.port.setText(str(entry.get('port', '443')))
-
-    def save_entry(self):
-        name = self.server_name.text().strip()
-        if not name:
-            self.status_label.setStyleSheet("color: red;")
-            self.status_label.setText("✖ Server name is required.")
-            QTimer.singleShot(4000, lambda: self.status_label.clear())
-            return
-        self.config[name] = {
-            'host': self.host.text().strip(),
-            'username': self.username.text().strip(),
-            'password': self.password.text().strip(),
-            'port': int(self.port.text().strip()) if self.port.text().strip().isdigit() else 443
-        }
-        if name not in [self.list_widget.item(i).text() for i in range(self.list_widget.count())]:
-            self.list_widget.addItem(name)
-        self.status_label.setStyleSheet("color: green;")
-        self.status_label.setText(f"✔ Server '{name}' saved.")
-        QTimer.singleShot(4000, lambda: self.status_label.clear())
-
-    def delete_entry(self):
-        name = self.server_name.text().strip()
-        if name in self.config:
-            confirm = QMessageBox.question(self, "Confirm Delete", f"Are you sure you want to delete server '{name}'?", QMessageBox.Yes | QMessageBox.No)
-            if confirm != QMessageBox.Yes:
-                return
-            del self.config[name]
-
-            self.list_widget.blockSignals(True)
-
-            items = self.list_widget.findItems(name, Qt.MatchExactly)
-            for item in items:
-                itm = self.list_widget.takeItem(self.list_widget.row(item))
-                del itm
-            self.list_widget.blockSignals(False)
-            
-            self.clear_form()
-            self.status_label.setStyleSheet("color: green;")
-            self.status_label.setText(f"✔ Server '{name}' deleted.")
-            QTimer.singleShot(4000, lambda: self.status_label.clear())
-
-    def clear_form(self):
-        self.server_name.clear()
-        self.host.clear()
-        self.username.clear()
-        self.password.clear()
-        self.port.clear()
-
-    def test_connection(self):
-        self.status_label.clear()
-        host = self.host.text().strip()
-        username = self.username.text().strip()
-        password = self.password.text().strip()
-        port = int(self.port.text().strip()) if self.port.text().strip().isdigit() else 443
+        self.selected_server_dropdown.currentTextChanged.connect(self.update_selected_server)
         
-        proto = 'https' if port == 443 else 'http'
-        try:
-            response = requests.get(proto + '://' + host + '/rest/stores', auth=(username, password), timeout=(10, 30))
-            if response.status_code == 200:
-                response = response.json()
+        # Set initial selection if there's only one server
+        if self.selected_server_dropdown.count() == 1:
+            self.selected_server_dropdown.setCurrentIndex(0)
+            self.update_selected_server(self.selected_server_dropdown.currentText())
+        elif self.selected_server_dropdown.count() == 0:
+            self.add_edit_button.setEnabled(False)
+
+    def open_server_modal(self):
+        """Open the server configuration modal in edit mode"""
+        selected_server = self.selected_server_dropdown.currentText()
+        
+        # Only open in edit mode if a server is selected
+        if selected_server and selected_server in self.config:
+            modal = ServerConfigModal(self.config, selected_server, self)
+            
+            if modal.exec_() == QDialog.Accepted:
+                # Refresh the dropdown after modal closes
+                self.refresh_server_dropdown()
                 
-                if response['success']:
-                    self.status_label.setStyleSheet("color: green;")
-                    self.status_label.setText("✔ Connection successful!")
-                    QTimer.singleShot(4000, lambda: self.status_label.clear())
-                else:
-                    self.status_label.setStyleSheet("color: red;")
-                    self.status_label.setText(f"✖ Login failed: {response['message']}")
-                    QTimer.singleShot(5000, lambda: self.status_label.clear())
-        except Exception as e:
-            self.status_label.setStyleSheet("color: red;")
-            self.status_label.setText(f"✖ Connection failed: {str(e)}")
-            QTimer.singleShot(5000, lambda: self.status_label.clear())
+                # Save config if callback is provided
+                if self.save_callback:
+                    self.save_callback(self.config)
+        else:
+            self.show_status("✖ Please select a server to edit.", "red")
+
+    def add_new_server(self):
+        """Open the server configuration modal in add mode"""
+        modal = ServerConfigModal(self.config, None, self)
+        
+        if modal.exec_() == QDialog.Accepted:
+            # Refresh the dropdown after modal closes
+            self.refresh_server_dropdown()
+            
+            # Save config if callback is provided
+            if self.save_callback:
+                self.save_callback(self.config)
+
+    def delete_server(self):
+        """Delete the currently selected server"""
+        selected_server = self.selected_server_dropdown.currentText()
+        
+        if not selected_server or selected_server not in self.config:
+            self.show_status("✖ No server selected to delete.", "red")
+            return
+        
+        confirm = QMessageBox.question(
+            self, 
+            "Confirm Delete", 
+            f"Are you sure you want to delete server '{selected_server}'?", 
+            QMessageBox.Yes | QMessageBox.No
+        )
+        
+        if confirm != QMessageBox.Yes:
+            return
+        
+        # Delete the server
+        del self.config[selected_server]
+        
+        # Clear selected server if it was the deleted one
+        if self.config.get('_selected_server') == selected_server:
+            self.config['_selected_server'] = None
+        
+        # Refresh the dropdown
+        self.refresh_server_dropdown()
+        
+        self.show_status(f"✔ Server '{selected_server}' deleted.", "green")
+
+    def refresh_server_dropdown(self):
+        """Refresh the server dropdown with current config"""
+
+        self.selected_server_dropdown.clear()
+
+        # Filter out metadata keys like '_selected_server'
+        server_names = [key for key in self.config.keys() if not key.startswith('_')]
+        self.selected_server_dropdown.addItems(sorted(server_names))
+        
+        # Update button text based on selection
+        if self.selected_server_dropdown.count() > 0:
+            self.add_edit_button.setEnabled(True)
+            self.selected_server_dropdown.setCurrentIndex(0)
+        else:
+            self.add_edit_button.setEnabled(False)
+        self.update_selected_server()
+
+    def show_status(self, message, color):
+        """Show status message with specified color"""
+        self.status_label.setStyleSheet(f"color: {color};")
+        self.status_label.setText(message)
+        QTimer.singleShot(4000, lambda: self.status_label.clear())
+    
+    def update_selected_server(self, selected_server=None):
+        """Update the selected server in the config"""
+        if selected_server is None:
+            selected_server = self.selected_server_dropdown.currentText()
+
+        self.config['_selected_server'] = selected_server
+        # Save config immediately after selection change
+        if self.save_callback:
+            self.save_callback(self.config)
