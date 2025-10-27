@@ -137,10 +137,16 @@ class PublishDialog(QDialog):
     
     def onServerChanged(self):
         if not self.selected_server or self.selected_server not in self.config:
+            self.store_dropdown.clear()
+            self.basemaps_dropdown.clear()
+            self.access_groups_dropdown.clear()
             return
             
         server_info = self.config.get(self.selected_server, {})
         if not server_info or not isinstance(server_info, dict):
+            self.store_dropdown.clear()
+            self.basemaps_dropdown.clear()
+            self.access_groups_dropdown.clear()
             return
             
         proto = 'https' if server_info.get('port', 443) == 443 else 'http'
@@ -169,10 +175,12 @@ class PublishDialog(QDialog):
 
     def updateStores(self):
         if not self.selected_server or self.selected_server not in self.config:
+            self.store_dropdown.clear()
             return
             
         server_info = self.config.get(self.selected_server, {})
         if not server_info or not isinstance(server_info, dict):
+            self.store_dropdown.clear()
             return
             
         stores = self.get_stores(server_info)
@@ -185,18 +193,36 @@ class PublishDialog(QDialog):
     
     def updateLayers(self):
         if not self.selected_server or self.selected_server not in self.config:
+            self.layer_dropdown.clear()
+            self.print_layout_dropdown.clear()
             return
             
         server_info = self.config.get(self.selected_server, {})
         if not server_info or not isinstance(server_info, dict):
+            self.layer_dropdown.clear()
+            self.print_layout_dropdown.clear()
             return
             
         store_name = self.store_dropdown.currentText()
         
         store_info = self.get_store_info(server_info,store_name)
+        if not store_info or not isinstance(store_info, dict):
+            self.layer_dropdown.clear()
+            return
         
-        layers        = store_info['Layers'].split(',')
-        print_layouts = store_info['Layouts'].split(',')
+        # Handle both string and list formats for Layers and Layouts
+        layers_data = store_info.get('Layers', [])
+        layouts_data = store_info.get('Layouts', [])
+        
+        if isinstance(layers_data, str):
+            layers = layers_data.split(',') if layers_data else []
+        else:
+            layers = layers_data if isinstance(layers_data, list) else []
+            
+        if isinstance(layouts_data, str):
+            print_layouts = layouts_data.split(',') if layouts_data else []
+        else:
+            print_layouts = layouts_data if isinstance(layouts_data, list) else []
         
         self.layer_dropdown.blockSignals(True)
         self.layer_dropdown.clear()
@@ -213,10 +239,12 @@ class PublishDialog(QDialog):
     
     def updateBasemaps(self):
         if not self.selected_server or self.selected_server not in self.config:
+            self.basemaps_dropdown.clear()
             return
             
         server_info = self.config.get(self.selected_server, {})
         if not server_info or not isinstance(server_info, dict):
+            self.basemaps_dropdown.clear()
             return
 
         self.basemaps_dropdown.blockSignals(True)
@@ -229,10 +257,12 @@ class PublishDialog(QDialog):
     
     def updateAccessGroups(self):
         if not self.selected_server or self.selected_server not in self.config:
+            self.access_groups_dropdown.clear()
             return
             
         server_info = self.config.get(self.selected_server, {})
         if not server_info or not isinstance(server_info, dict):
+            self.access_groups_dropdown.clear()
             return
 
         self.access_groups_dropdown.blockSignals(True)
@@ -254,7 +284,7 @@ class PublishDialog(QDialog):
                 if response['success']:
                     rv = response['access_groups']
                 else:
-                    QMessageBox.warning(None, "QCarta Error", response['message'])
+                    QMessageBox.warning(None, "QCarta Error", 'get_access_groups:' + response['message'])
         except Exception as e:
             QMessageBox.critical(None, "HTTP Error", f"An error occurred: {e}")
 
@@ -271,7 +301,7 @@ class PublishDialog(QDialog):
                 if response['success']:
                     rv = response['basemaps']
                 else:
-                    QMessageBox.warning(None, "QCarta Error", response['message'])
+                    QMessageBox.warning(None, "QCarta Error", 'get_basemaps:' + response['message'])
         except Exception as e:
             QMessageBox.critical(None, "HTTP Error", f"An error occurred: {e}")
 
@@ -296,13 +326,13 @@ class PublishDialog(QDialog):
         
         proto = 'https' if server_info['port'] == 443 else 'http'
         try:
-            response = self.s.post(proto + '://' + server_info['host'] + '/admin/action/qgs.php', data={'action':'info', 'id': self.stores[store_name]['id']}, timeout=(10, 30))
+            response = self.s.get(proto + '://' + server_info['host'] + '/rest/store/' + store_name, timeout=(10, 30))
             if response.status_code == 200:
                 response = response.json()
                 if response['success']:
-                    rv = response['message']
+                    rv = response['store']
                 else:
-                    QMessageBox.warning(None, "QCarta Error", response['message'])
+                    QMessageBox.warning(None, "QCarta Error", 'get_store_info:' + response['message'])
         except Exception as e:
             QMessageBox.critical(None, "HTTP Error", f"An error occurred: {e}")
 

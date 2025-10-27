@@ -1,6 +1,6 @@
 import os
 import requests
-from qgis.PyQt.QtWidgets import QVBoxLayout, QMessageBox, QLineEdit, QDialog, QVBoxLayout, QLabel, QFormLayout, QComboBox, QComboBox, QHBoxLayout, QProgressBar, QTextEdit, QDialog, QVBoxLayout, QPushButton
+from qgis.PyQt.QtWidgets import QVBoxLayout, QMessageBox, QLineEdit, QDialog, QVBoxLayout, QLabel, QFormLayout, QComboBox, QComboBox, QHBoxLayout, QProgressBar, QTextEdit, QDialog, QVBoxLayout, QPushButton, QListWidget, QListWidgetItem
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtCore import Qt
 from qgis.core import QgsProject
@@ -17,6 +17,7 @@ class CreateDialog(QDialog):
         self.layout = QVBoxLayout()
         self.layout.setContentsMargins(3, 3, 4, 4)
         self.layout.setSpacing(4)
+        self.access_groups = {}
     
         logo_path = os.path.join(os.path.dirname(__file__), 'logo.png')
         if os.path.exists(logo_path):
@@ -55,6 +56,12 @@ class CreateDialog(QDialog):
     
         self.layout.addLayout(form_layout)
     
+        self.access_groups_dropdown = QListWidget()
+        self.access_groups_dropdown.setSelectionMode(QListWidget.MultiSelection)    
+
+
+        form_layout.addRow("Access Groups:", self.access_groups_dropdown)
+
         button_box = QHBoxLayout()
         create_btn = QPushButton("Create")
         cancel_btn = QPushButton("Cancel")
@@ -78,6 +85,66 @@ class CreateDialog(QDialog):
         
         create_btn.clicked.connect(self.create_store)
         cancel_btn.clicked.connect(self.reject)
+        
+        self.s = requests.Session()
+        self.onServerChanged()
+
+
+    def onServerChanged(self):
+        if not self.selected_server or self.selected_server not in self.config:
+            self.access_groups_dropdown.clear()
+            return
+            
+        server_info = self.config.get(self.selected_server, {})
+        if not server_info or not isinstance(server_info, dict):
+            self.access_groups_dropdown.clear()
+            return
+        
+        proto = 'https' if server_info.get('port', 443) == 443 else 'http'
+        
+        try:
+            if not app_http_login(self.s, proto, server_info['host'], server_info['username'], server_info['password']):
+                QMessageBox.warning(None, "Login error", "Failed to login to with " + server_info['username'] + ' to ' + server_info['host'])
+        except Exception as e:
+            QMessageBox.warning(None, "HTTP error", "Failed on login: " + str(e))
+            return
+
+        self.updateAccessGroups()
+
+    def updateAccessGroups(self):
+        if not self.selected_server or self.selected_server not in self.config:
+            self.access_groups_dropdown.clear()
+            return
+            
+        server_info = self.config.get(self.selected_server, {})
+        if not server_info or not isinstance(server_info, dict):
+            self.access_groups_dropdown.clear()
+            return
+
+        self.access_groups_dropdown.blockSignals(True)
+        self.access_groups_dropdown.clear()
+        
+        for g in self.get_access_groups(server_info):
+            self.access_groups[g['name']] = g['id']
+            self.access_groups_dropdown.addItem(QListWidgetItem(g['name']))
+        self.access_groups_dropdown.blockSignals(False)
+    
+    def get_access_groups(self, server_info):
+        rv = {}
+        
+        proto = 'https' if server_info['port'] == 443 else 'http'
+        try:
+            response = self.s.post(proto + '://' + server_info['host'] + '/admin/action/access_group.php', data={'action':'list'}, timeout=(10, 30))
+            if response.status_code == 200:
+                response = response.json()
+                if response['success']:
+                    rv = response['access_groups']
+                else:
+                    QMessageBox.warning(None, "QCarta Error", response['message'])
+        except Exception as e:
+            QMessageBox.critical(None, "HTTP Error", f"An error occurred: {e}")
+
+        return rv
 
     def read_in_chunks(self, file_object, chunk_size=65536):
         while True:
@@ -105,14 +172,17 @@ class CreateDialog(QDialog):
             return
         project_dir = os.path.dirname(project_path)
         
+        # convert access group names to ids
+        map_access_groups = []
+        for g in self.access_groups_dropdown.selectedItems():
+            map_access_groups.append(self.access_groups[g.text()])
+        
+        if not map_access_groups:
+            QMessageBox.warning(self, "Missing Info", "Please select layer access groups.")
+            return
+
         proto = 'https' if server_info['port'] == 443 else 'http'
 
-        s = requests.Session()
-        
-        if not app_http_login(s, proto, server_info['host'], server_info['username'], server_info['password']):
-            QMessageBox.warning(None, "Login error", "Failed to login to with " + server_info['username'] + ' to ' + server_info['host'])
-            return
-        
         project_dir = os.path.dirname(project_path)
         
         qgs_list = []
@@ -132,7 +202,7 @@ class CreateDialog(QDialog):
                             for chunk in self.read_in_chunks(f):                                
                                 post_values['start'] = offset
                                 post_values['bytes'] = chunk
-                                response = s.post(proto + '://' + server_info['host'] + '/admin/action/upload.php', data=post_values, timeout=(10,30));
+                                response = self.s.post(proto + '://' + server_info['host'] + '/admin/action/upload.php', data=post_values, timeout=(10,30));
                                 if response.status_code != 200:
                                     raise Exception("Chunk upload failed")
                                 offset = offset + len(chunk)
@@ -143,9 +213,9 @@ class CreateDialog(QDialog):
             return
         
         # upload .qgs files, so we can create store
-        post_values = {'action':'save', 'name': store_name, 'group_id[]':1, 'source[]':qgs_list}
+        post_values = {'action':'save', 'name': store_name, 'group_id[]': map_access_groups, 'source[]':qgs_list}
         
-        response = s.post(proto + '://' + server_info['host'] + '/admin/action/qgs.php', data=post_values, timeout=(10,30))
+        response = self.s.post(proto + '://' + server_info['host'] + '/admin/action/qgs.php', data=post_values, timeout=(10,30))
         if response.status_code != 200:
             response = response.json();
             QMessageBox.warning(None, "Create error", "Failed to create store: " + response['message'])
@@ -159,7 +229,7 @@ class CreateDialog(QDialog):
             self.log_output.setVisible(True)
 
             try:
-                response = s.get(proto + '://' + server_info['host'] + '/rest/store/' + store_name, timeout=(10, 30))
+                response = self.s.get(proto + '://' + server_info['host'] + '/rest/store/' + store_name, timeout=(10, 30))
             except Exception as e:
                 QMessageBox.warning(None, "HTTP error", "Failed to request store info: " + str(e))
                 return
@@ -185,13 +255,13 @@ class CreateDialog(QDialog):
                         for chunk in self.read_in_chunks(f):                                
                             post_values['start'] = offset
                             post_values['bytes'] = chunk
-                            response = s.post(proto + '://' + server_info['host'] + '/admin/action/upload.php', data=post_values, timeout=(10, 30));
+                            response = self.s.post(proto + '://' + server_info['host'] + '/admin/action/upload.php', data=post_values, timeout=(10, 30));
                             if response.status_code != 200:
                                 raise Exception("Chunk upload failed")
                             offset = offset + len(chunk)
                     
                     post_values={'id':store_info['id'], 'action':'update_file', 'relative_path': relative_path, 'mtime': os.path.getmtime(local_path)}
-                    response = s.post(proto + '://' + server_info['host'] + '/admin/action/qgs.php', data=post_values, timeout=(10, 30));
+                    response = self.s.post(proto + '://' + server_info['host'] + '/admin/action/qgs.php', data=post_values, timeout=(10, 30));
                     if response.status_code != 200:
                         raise Exception("Store update failed")
 

@@ -48,7 +48,7 @@ class UploadDialog(QDialog):
             
         self.store_dropdown = QComboBox()
         
-        self.updateStores()
+        self.onServerChanged()
     
         form_layout.addRow(self.server_label)
         form_layout.addRow("Store:", self.store_dropdown)
@@ -79,12 +79,14 @@ class UploadDialog(QDialog):
         upload_btn.clicked.connect(self.start_upload)
         cancel_btn.clicked.connect(self.reject)
     
-    def updateStores(self):
+    def onServerChanged(self):
         if not self.selected_server or self.selected_server not in self.config:
+            self.store_dropdown.clear()
             return
             
         server_info = self.config.get(self.selected_server, {})
         if not server_info or not isinstance(server_info, dict):
+            self.store_dropdown.clear()
             return
             
         stores = self.get_stores(server_info)
