@@ -1,8 +1,18 @@
-**********************
+.. This is a comment. Note how any initial comments are moved by
+   transforms to after the document title, subtitle, and docinfo.
+
+.. demo.rst from: http://docutils.sourceforge.net/docs/user/rst/demo.txt
+
+.. |EXAMPLE| image:: static/yi_jing_01_chien.jpg
+   :width: 1em
+
+************
 QCarta QGIS Plugin
-**********************
+************
 
 .. contents:: Table of Contents
+
+
 Installation
 ==================
 
@@ -10,62 +20,72 @@ The plugin is available via the QGIS Plugin Repository
 
 This is the recommended way to install it.
 
-Manual Installation
-==================
+.. image:: _static/qcarta-plugin-0.png
 
-Download qcarta_qgis_plugin.zip to your desktop
-
-In QGIS, go to Plugins > Manage and Install Plugins and click on "Install from Zip" in left menu.
-
-Browse to location where you saved acugis_sftp_tool.zip and then click "Install Plugin"
-
-.. image:: install-1.png
-
-Once installed, you should see the Plugins menu.
+.. note::
+    The plugin is NOT a requirement for publishing to QCarta, you can publish directly via QCarta admin interface as well.
 
 Usage
 ==================
   
-Begin by selecting Configure SFTP servers:  
+Once installed, go to Web > QCarta > QCarta Console:
 
-.. image:: qcarta01.png
+.. image:: _static/qcarta-plugin-1.png
 
-Click Add to add server(s).
+Click Add New Server
 
-.. image:: qcarta3.png
+.. image:: _static/qcarta-plugin-2.png
 
-Click Save.
+Enter your QCarta server details and click Test Connection
 
-Go to Create Store
+When Connection test passes, click Save
 
-.. image:: qcarta02.png
+.. image:: _static/qcarta-plugin-3-b.png
 
-Select the Server you wish to upload to.  
 
-.. warning::
-    The entire QGIS Project directory will be uploaded.
+Go to the Store tab.
 
-Click Upload
+.. image:: _static/qcarta-plugin-4.png
 
-A success message will be displayed up completion.
+Give your Store a name and click Create
 
-.. image:: qcarta6.png
+.. image:: _static/qcarta-plugin-5.png
+
+This will upload the QGIS project directory and create the Store
+
+.. image:: _static/qcarta-plugin-6.png
+
+Click the Publish tab
+
+.. image:: _static/qcarta-plugin-7.png
+
+Select the Store you wish to Publish from the dropdown
+
+.. image:: _static/qcarta-plugin-8.png
+
+Select your map options and will in the required fields.
+
+Click Create
+
+.. image:: _static/qcarta-plugin-10.png
+
+You'll see a message that your Store has now been Published
+
+.. image:: _static/qcarta-plugin-11.png
+
+View the map
+
+.. image:: _static/qcarta-plugin-12.png
 
 .. note::
-    If files exist, you will prompted if you wish to overwrite files.
+    Just as you can do all above without using the Plugin, you can also edit Maps you have published directly in QCarta as well.
     
 
 
 Update Store
 ==================
 
-You can update an existing Store using the Update Store function
-
-.. image:: qcarta03.png
-
-Select the Server and Store:
-
-.. image:: qcarta7.png
+You can update an existing Store using the Update Store tab.
 
 
 
