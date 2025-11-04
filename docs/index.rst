@@ -1,7 +1,7 @@
 QCarta QGIS Plugin
 ==================================================
 
-.. image:: qcarta6.png
+.. image:: images/qcarta-plugin-10.png
 
 
 .. include:: ../README.rst
